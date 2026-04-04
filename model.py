@@ -6,8 +6,10 @@ from sklearn.metrics import classification_report
 import joblib
 
 def fetch_stock_data(ticker, period="1y"):
+    import yfinance as yf
+    yf.set_tz_cache_location("custom_cache_dir")
     stock = yf.Ticker(ticker)
-    df = stock.history(period=period)
+    df = stock.history(period=period, auto_adjust=True)
     df = df[["Open", "High", "Low", "Close", "Volume"]]
     df.dropna(inplace=True)
     return df
