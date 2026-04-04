@@ -1,0 +1,35 @@
+import streamlit as st
+import joblib
+import pandas as pd
+from model import fetch_stock_data, add_trend_label, add_features
+
+st.set_page_config(page_title="StockSense", page_icon="📈", layout="wide")
+
+st.title("📈 StockSense")
+st.subheader("Smart Stock Trend Analyzer for Beginner Investors")
+
+# Stock selector
+ticker = st.text_input("Enter NSE Stock Symbol", value="RELIANCE.NS")
+
+if st.button("Analyze"):
+    with st.spinner("Fetching data..."):
+        df = fetch_stock_data(ticker)
+        df = add_trend_label(df)
+        df = add_features(df)
+
+        model = joblib.load("models/stock_model.pkl")
+        features = ["MA7", "MA21", "Momentum", "Volatility", "Volume_Change"]
+        latest = df[features].iloc[-1:]
+        prediction = model.predict(latest)[0]
+
+    st.metric("Latest Close Price", f"₹{df['Close'].iloc[-1]:.2f}")
+    st.metric("Trend Prediction", prediction)
+
+    color = "green" if prediction == "Up" else "red" if prediction == "Down" else "orange"
+    st.markdown(f"### Trend: :{color}[{prediction}] {'🟢' if prediction == 'Up' else '🔴' if prediction == 'Down' else '🟡'}")
+
+    st.subheader("Recent Price Data")
+    st.dataframe(df[["Close", "MA7", "MA21", "Trend"]].tail(10))
+
+    st.subheader("Price Chart")
+    st.line_chart(df["Close"])
