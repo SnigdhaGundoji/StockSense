@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from model import fetch_stock_data, add_trend_label, add_features
 
@@ -45,15 +46,49 @@ if st.button("Analyze"):
         latest = df[features].iloc[-1:]
         prediction = model.predict(latest)[0]
 
-    st.metric("Latest Close Price", f"₹{df['Close'].iloc[-1]:.2f}")
-    st.metric("Trend Prediction", prediction)
+        # 7-day prediction
+        future_predictions = []
+        last_row = df[features].iloc[-1].copy()
+        for i in range(7):
+            pred = model.predict([last_row.values])[0]
+            future_predictions.append(pred)
+            last_row["Momentum"] = last_row["Momentum"] * 0.95
+            last_row["Volatility"] = last_row["Volatility"] * 0.98
+
+        # Buy/Sell/Hold signal
+        up_count = future_predictions.count("Up")
+        down_count = future_predictions.count("Down")
+        if up_count >= 4:
+            signal = "BUY 🟢"
+            signal_color = "green"
+        elif down_count >= 4:
+            signal = "AVOID 🔴"
+            signal_color = "red"
+        else:
+            signal = "HOLD 🟡"
+            signal_color = "orange"
+
+    # Current metrics
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Close Price", f"₹{df['Close'].iloc[-1]:.2f}")
+    col2.metric("Today's Trend", prediction)
+    col3.metric("Recommendation", signal)
 
     color = "green" if prediction == "Up" else "red" if prediction == "Down" else "orange"
-    st.markdown(f"### Trend: :{color}[{prediction}] {'🟢' if prediction == 'Up' else '🔴' if prediction == 'Down' else '🟡'}")
+    st.markdown(f"### Today: :{color}[{prediction}] {'🟢' if prediction == 'Up' else '🔴' if prediction == 'Down' else '🟡'}")
+    st.markdown(f"### Signal: :{signal_color}[{signal}]")
 
+    # 7-day forecast table
+    st.subheader("📅 7-Day Trend Forecast")
+    forecast_df = pd.DataFrame({
+        "Day": [f"Day {i+1}" for i in range(7)],
+        "Predicted Trend": future_predictions
+    })
+    st.dataframe(forecast_df, use_container_width=True)
+
+    # Recent data
     st.subheader("Recent Price Data")
     st.dataframe(df[["Close", "MA7", "MA21", "Trend"]].tail(10))
 
     st.subheader("Price Chart")
     st.line_chart(df["Close"])
-
