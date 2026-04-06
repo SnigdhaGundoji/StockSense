@@ -1,6 +1,8 @@
 import yfinance as yf
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
@@ -73,3 +75,31 @@ def train_model(df):
     accuracy = accuracy_score(y_test, y_pred)
 
     return model, accuracy
+
+def predict_future_prices(df, days=30):
+    df = df.copy()
+    df["Days"] = np.arange(len(df))
+
+    X = df[["Days"]]
+    y = df["Close"]
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Last 30 days real vs predicted
+    last_30 = df.tail(30)
+    real_prices = last_30["Close"].values
+    predicted_prices = model.predict(last_30[["Days"]])
+
+    # Next 7 days forecast
+    last_day = df["Days"].iloc[-1]
+    future_days = np.arange(last_day + 1, last_day + 8).reshape(-1, 1)
+    future_prices = model.predict(future_days)
+
+    return real_prices, predicted_prices, future_prices, last_30.index
+
+if __name__ == "__main__":
+    df = fetch_stock_data("RELIANCE.NS")
+    df = add_trend_label(df)
+    df = add_features(df)
+    train_model(df)

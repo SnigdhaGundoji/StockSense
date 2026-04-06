@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import requests
 from sklearn.ensemble import RandomForestClassifier
-from model import fetch_stock_data, add_trend_label, add_features, train_model, get_company_info
+from model import fetch_stock_data, add_trend_label, add_features, train_model, get_company_info, predict_future_prices
 
 def get_news_sentiment(company_name, api_key):
     url = f"https://newsapi.org/v2/everything?q={company_name}&language=en&sortBy=publishedAt&pageSize=5&apiKey={api_key}"
@@ -91,7 +91,7 @@ if st.button("Analyze"):
         latest = df[features].iloc[-1:]
         prediction = model.predict(latest)[0]
 
-        # 7-day prediction
+        # 7-day trend prediction
         future_predictions = []
         last_row = df[features].iloc[-1].copy()
         for i in range(7):
@@ -99,6 +99,9 @@ if st.button("Analyze"):
             future_predictions.append(pred)
             last_row["Momentum"] = last_row["Momentum"] * 0.95
             last_row["Volatility"] = last_row["Volatility"] * 0.98
+
+        # Price prediction
+        real_prices, predicted_prices, future_prices, last_30_index = predict_future_prices(df)
 
         # Signal
         up_count = future_predictions.count("Up")
@@ -174,6 +177,42 @@ if st.button("Analyze"):
         height=400
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # Real vs Predicted + Future price graph
+    st.markdown("---")
+    st.subheader("🔮 Price Prediction — Real vs Predicted + Next 7 Days")
+
+    future_dates = pd.date_range(
+        start=last_30_index[-1] + pd.Timedelta(days=1), periods=7, freq="B"
+    )
+
+    fig3 = go.Figure()
+    fig3.add_trace(go.Scatter(
+        x=last_30_index,
+        y=real_prices,
+        name="Real Price",
+        line=dict(color="cyan", width=2)
+    ))
+    fig3.add_trace(go.Scatter(
+        x=last_30_index,
+        y=predicted_prices,
+        name="Predicted Price",
+        line=dict(color="orange", width=2, dash="dash")
+    ))
+    fig3.add_trace(go.Scatter(
+        x=future_dates,
+        y=future_prices,
+        name="Future Forecast",
+        line=dict(color="lime", width=2, dash="dot")
+    ))
+    fig3.update_layout(
+        template="plotly_dark",
+        height=400,
+        xaxis_title="Date",
+        yaxis_title=f"Price ({currency})",
+        legend=dict(orientation="h")
+    )
+    st.plotly_chart(fig3, use_container_width=True)
 
     # 7-day forecast table
     st.markdown("---")
