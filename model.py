@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
 import joblib
 
 def fetch_stock_data(ticker, period="10y"):
@@ -13,6 +13,18 @@ def fetch_stock_data(ticker, period="10y"):
     df = df[["Open", "High", "Low", "Close", "Volume"]]
     df.dropna(inplace=True)
     return df
+
+def get_company_info(ticker):
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    return {
+        "name": info.get("longName", ticker),
+        "sector": info.get("sector", "N/A"),
+        "market_cap": info.get("marketCap", "N/A"),
+        "pe_ratio": info.get("trailingPE", "N/A"),
+        "52w_high": info.get("fiftyTwoWeekHigh", "N/A"),
+        "52w_low": info.get("fiftyTwoWeekLow", "N/A"),
+    }
 
 def add_trend_label(df):
     df["Return"] = df["Close"].pct_change() * 100
@@ -33,12 +45,20 @@ def add_features(df):
     df["Momentum"]      = df["Close"] - df["Close"].shift(7)
     df["Volatility"]    = df["Close"].rolling(window=7).std()
     df["Volume_Change"] = df["Volume"].pct_change() * 100
+
+    # RSI
+    delta = df["Close"].diff()
+    gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+    loss = -delta.where(delta < 0, 0).rolling(window=14).mean()
+    rs = gain / loss
+    df["RSI"] = 100 - (100 / (1 + rs))
+
     df.replace([float('inf'), float('-inf')], 0, inplace=True)
     df.dropna(inplace=True)
     return df
 
 def train_model(df):
-    features = ["MA7", "MA21", "Momentum", "Volatility", "Volume_Change"]
+    features = ["MA7", "MA21", "Momentum", "Volatility", "Volume_Change", "RSI"]
     X = df[features]
     y = df["Trend"]
 
@@ -50,16 +70,6 @@ def train_model(df):
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
-    print("✅ Model trained successfully!\n")
-    print(classification_report(y_test, y_pred))
+    accuracy = accuracy_score(y_test, y_pred)
 
-    joblib.dump(model, "models/stock_model.pkl")
-    print("✅ Model saved to models/stock_model.pkl")
-
-    return model
-
-if __name__ == "__main__":
-    df = fetch_stock_data("RELIANCE.NS")
-    df = add_trend_label(df)
-    df = add_features(df)
-    train_model(df)
+    return model, accuracy
