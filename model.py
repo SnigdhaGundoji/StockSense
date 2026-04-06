@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import joblib
 
-def fetch_stock_data(ticker, period="1y"):
+def fetch_stock_data(ticker, period="10y"):
     import yfinance as yf
     yf.set_tz_cache_location("custom_cache_dir")
     stock = yf.Ticker(ticker)
