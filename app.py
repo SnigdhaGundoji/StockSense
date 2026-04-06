@@ -2,8 +2,36 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import requests
 from sklearn.ensemble import RandomForestClassifier
 from model import fetch_stock_data, add_trend_label, add_features, train_model, get_company_info
+
+def get_news_sentiment(company_name, api_key):
+    url = f"https://newsapi.org/v2/everything?q={company_name}&language=en&sortBy=publishedAt&pageSize=5&apiKey={api_key}"
+    response = requests.get(url)
+    articles = response.json().get("articles", [])
+
+    positive_words = ["surge", "gain", "profit", "growth", "up", "rise", "high", "strong", "beat", "record"]
+    negative_words = ["fall", "drop", "loss", "down", "weak", "crash", "risk", "cut", "miss", "decline"]
+
+    results = []
+    for article in articles:
+        title = article.get("title", "").lower()
+        score = 0
+        for word in positive_words:
+            if word in title:
+                score += 1
+        for word in negative_words:
+            if word in title:
+                score -= 1
+
+        sentiment = "Positive 🟢" if score > 0 else "Negative 🔴" if score < 0 else "Neutral 🟡"
+        results.append({
+            "Headline": article.get("title", ""),
+            "Sentiment": sentiment,
+        })
+
+    return results
 
 st.set_page_config(page_title="StockSense", page_icon="📈", layout="wide")
 
@@ -155,6 +183,17 @@ if st.button("Analyze"):
         "Predicted Trend": future_predictions
     })
     st.dataframe(forecast_df, use_container_width=True)
+
+    # News Sentiment
+    st.markdown("---")
+    st.subheader("📰 Latest News Sentiment")
+    API_KEY = "44704190ffeb4e34b77ffcd083b5be88"
+    news = get_news_sentiment(selected, API_KEY)
+    if news:
+        news_df = pd.DataFrame(news)
+        st.dataframe(news_df[["Headline", "Sentiment"]], use_container_width=True)
+    else:
+        st.info("No news found.")
 
     # Recent data
     st.markdown("---")
