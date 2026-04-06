@@ -175,7 +175,7 @@ if st.button("Analyze"):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 7-day forecast
+    # 7-day forecast table
     st.markdown("---")
     st.subheader("📅 7-Day Trend Forecast")
     forecast_df = pd.DataFrame({
@@ -183,6 +183,34 @@ if st.button("Analyze"):
         "Predicted Trend": future_predictions
     })
     st.dataframe(forecast_df, use_container_width=True)
+
+    # Forecast bar chart
+    colors = []
+    for t in future_predictions:
+        if t == "Up":
+            colors.append("green")
+        elif t == "Down":
+            colors.append("red")
+        else:
+            colors.append("orange")
+
+    fig2 = go.Figure(data=[
+        go.Bar(
+            x=[f"Day {i+1}" for i in range(7)],
+            y=[1] * 7,
+            marker_color=colors,
+            text=future_predictions,
+            textposition="inside",
+        )
+    ])
+    fig2.update_layout(
+        title="7-Day Trend Visual",
+        template="plotly_dark",
+        height=300,
+        yaxis=dict(visible=False),
+        showlegend=False
+    )
+    st.plotly_chart(fig2, use_container_width=True)
 
     # News Sentiment
     st.markdown("---")
